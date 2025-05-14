@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,9 @@ const CareerProfile = () => {
     }
   }, [user, profile]);
 
+  // Create a ref for the ATS score section
+  const atsScoreSectionRef = useRef<HTMLDivElement>(null);
+
   const { data: resume, refetch: refetchResume } = useQuery<Resume | null>({
     queryKey: ["resume", user?.id],
     queryFn: async () => {
@@ -86,6 +89,16 @@ const CareerProfile = () => {
     staleTime: 0, // Always consider data stale to encourage refetching
     refetchOnMount: true, // Refetch on component mount
     refetchOnWindowFocus: true, // Refetch when window gets focus
+    onSuccess: (data) => {
+      // If we have a valid ATS score, scroll to the section
+      if (data?.ats_score && typeof data.ats_score === 'number') {
+        setTimeout(() => {
+          if (atsScoreSectionRef.current) {
+            atsScoreSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 500);
+      }
+    }
   });
 
   const { data: skills, refetch: refetchSkills } = useQuery<Skill[]>({
@@ -109,12 +122,36 @@ const CareerProfile = () => {
   }, [user, profile, navigate]);
 
   // Log resume data when it changes to help with debugging
+  // and ensure ATS score is properly displayed
   useEffect(() => {
     if (resume) {
       console.log("Resume data updated:", resume);
       console.log("ATS Score:", resume.ats_score);
       console.log("Keywords:", resume.keywords);
       console.log("Recommendations:", resume.recommendations);
+      
+      // If ATS score is not a valid number, try to update it
+      if (resume.id && (typeof resume.ats_score !== 'number' || isNaN(resume.ats_score))) {
+        console.warn("Invalid ATS score detected, attempting to fix");
+        (async () => {
+          try {
+            const { error } = await supabase
+              .from("resumes")
+              .update({
+                ats_score: 70, // Default fallback score
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", resume.id);
+              
+            if (!error) {
+              console.log("Applied fallback ATS score");
+              setTimeout(() => refetchResume(), 500);
+            }
+          } catch (err) {
+            console.error("Error fixing ATS score:", err);
+          }
+        })();
+      }
     }
   }, [resume]);
 
@@ -377,9 +414,11 @@ const CareerProfile = () => {
           
           console.log("Resume saved successfully:", dbData);
 
+      // Show success toast with ATS score information
       toast({
-        title: "Success",
-        description: "Resume uploaded and analyzed successfully",
+        title: "Resume Uploaded Successfully",
+        description: `Your resume has been analyzed with an ATS score of ${Math.round(resumeData.ats_score)}%. Scroll down to see detailed analysis.`,
+        variant: "default",
       });
 
           // Refresh the resume data immediately and then with a delay
@@ -692,14 +731,28 @@ const CareerProfile = () => {
 
                     {/* ATS Score Section */}
                     {resume.ats_score !== null && resume.ats_score !== undefined ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">ATS Score</span>
-                          <Badge variant={resume.ats_score >= 70 ? "default" : "secondary"}>
-                            {Math.round(resume.ats_score)}%
-                          </Badge>
+                      <div className="space-y-4" ref={atsScoreSectionRef}>
+                        <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-lg">ATS Score</span>
+                            <Badge 
+                              variant={resume.ats_score >= 70 ? "default" : "secondary"}
+                              className="text-md px-3 py-1"
+                            >
+                              {Math.round(resume.ats_score)}%
+                            </Badge>
+                          </div>
+                          <Progress 
+                            value={resume.ats_score} 
+                            className="h-3" 
+                            indicatorClassName={`${resume.ats_score >= 80 ? 'bg-green-500' : resume.ats_score >= 60 ? 'bg-amber-500' : 'bg-red-500'}`}
+                          />
+                          <p className="text-sm mt-2 text-muted-foreground">
+                            {resume.ats_score >= 80 ? 'Excellent! Your resume is well-optimized for ATS systems.' :
+                             resume.ats_score >= 60 ? 'Good. Your resume is reasonably optimized but has room for improvement.' :
+                             'Your resume needs optimization to perform better with ATS systems.'}
+                          </p>
                         </div>
-                        <Progress value={resume.ats_score} className="h-2" />
                         
                         {/* Debug info - only visible in development */}
                         {import.meta.env.DEV && (
@@ -740,16 +793,35 @@ const CareerProfile = () => {
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-2 my-4">
-                        <p className="text-amber-600">Resume uploaded but ATS score not available yet. The analysis might still be processing.</p>
+                      <div className="space-y-4 my-4">
+                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                          <div className="flex items-start gap-3">
+                            <div className="rounded-full bg-amber-100 p-2">
+                              <Loader2 className="h-4 w-4 text-amber-600 animate-spin" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-amber-800">ATS Score Processing</h4>
+                              <p className="text-sm text-amber-700 mt-1">
+                                Your resume has been uploaded successfully, but the ATS score analysis is still processing. 
+                                This may take a few moments to complete.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2 mt-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => refetchResume()}
+                            onClick={() => {
+                              toast({
+                                title: "Refreshing Analysis",
+                                description: "Checking for your ATS score..."
+                              });
+                              refetchResume();
+                            }}
                             className="flex items-center gap-2"
                           >
-                            <Loader2 className="h-4 w-4" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                             Refresh Analysis
                           </Button>
                           

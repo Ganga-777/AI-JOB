@@ -674,6 +674,25 @@ const Interview = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      
+      {/* External Interview Simulator Banner */}
+      <div className="bg-primary/10 p-4 flex flex-col sm:flex-row items-center justify-between">
+        <div className="mb-4 sm:mb-0">
+          <h3 className="text-lg font-semibold">Try our Advanced AI Interview Simulator</h3>
+          <p className="text-sm text-muted-foreground">Practice with intelligent, role-specific questions and get detailed feedback</p>
+        </div>
+        <a 
+          href="https://f61497aa-ee70-4e5c-89a8-f89385ab5572-00-1lf0kaaplig90.picard.replit.dev/start_interview/1" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="no-underline"
+        >
+          <Button className="bg-primary hover:bg-primary/90">
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Launch Interview Simulator
+          </Button>
+        </a>
+      </div>
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-6xl mx-auto space-y-6">
           {renderInterviewPrep()}

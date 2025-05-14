@@ -3,6 +3,13 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { Menu, X, User, Briefcase, MessageSquare, LogOut, ChevronDown, DollarSign, FileText } from "lucide-react";
+
+interface MenuItem {
+  label: string;
+  path: string;
+  icon: React.ElementType;
+  external?: boolean;
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,11 +28,12 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { t } = useTranslation();
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { label: t("Find Jobs"), path: "/jobs", icon: Briefcase },
     { label: t("AI Interview"), path: "/interview", icon: MessageSquare },
     { label: t("Salary Predictor"), path: "/salary-predictor", icon: DollarSign },
     { label: t("Resume Builder"), path: "/resume-builder", icon: FileText },
+    { label: t("Interview Simulator"), path: "https://f61497aa-ee70-4e5c-89a8-f89385ab5572-00-1lf0kaaplig90.picard.replit.dev/start_interview/1", icon: MessageSquare, external: true },
   ];
 
   const toggleMenu = () => setIsOpen(!isOpen);
@@ -46,12 +54,21 @@ export const Navbar = () => {
           {/* Desktop navigation */}
           <div className="hidden md:flex md:items-center md:space-x-4">
             {menuItems.map((item) => (
-              <Link key={item.path} to={item.path}>
-                <Button variant="ghost" className="flex items-center space-x-2">
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Button>
-              </Link>
+              item.external ? (
+                <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" className="flex items-center space-x-2">
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Button>
+                </a>
+              ) : (
+                <Link key={item.path} to={item.path}>
+                  <Button variant="ghost" className="flex items-center space-x-2">
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Button>
+                </Link>
+              )
             ))}
 
             <LanguageSelector />
@@ -117,15 +134,29 @@ export const Navbar = () => {
       <div className={cn("md:hidden", isOpen ? "block" : "hidden")}>
         <div className="px-2 pt-2 pb-3 space-y-1">
           {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-muted"
-              onClick={toggleMenu}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </Link>
+            item.external ? (
+              <a
+                key={item.path}
+                href={item.path}
+                className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-muted"
+                onClick={toggleMenu}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </a>
+            ) : (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-muted"
+                onClick={toggleMenu}
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            )
           ))}
           {user ? (
             <>
